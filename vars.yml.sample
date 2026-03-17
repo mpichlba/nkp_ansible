@@ -1,0 +1,18 @@
+---
+NODE_IMAGE_URL: "https://download.nutanix.com/downloads/nkp-os/vX.X.X/nkp-rocky-X.X-release.qcow2"  # Download URL for NKP Rocky node OS image
+SSH_PUBLIC_KEY: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAB..." # Your SSH public key
+NKP_LINUX_URL: "https://download.nutanix.com/downloads/nkp/vX.X.X/nkp_vX.X.X_linux_amd64.tar.gz"  # NKP binary download link for Linux
+NKP_VERSION: "v2.17.1"  # NKP version to install
+CLUSTER_NAME: "nkpcluster01"  # NKP cluster name
+NUTANIX_USER: "admin"  # Prism Central username
+NUTANIX_PASSWORD: 'YourPassword123!'  # Keep the password enclosed between single quotes
+NUTANIX_ENDPOINT: "192.168.1.100"  # Prism Central IP address
+NUTANIX_PORT: "9440"  # Prism Central port
+LB_IP_RANGE: "192.168.1.210-192.168.1.220"  # Load balancer IP range
+CONTROL_PLANE_ENDPOINT_IP: "192.168.1.230"  # Kubernetes VIP
+NUTANIX_MACHINE_TEMPLATE_IMAGE_NAME: "nkp-rocky-9.6-release-cis-1.34.3"  # NKP Rocky image name
+NUTANIX_PRISM_ELEMENT_CLUSTER_NAME: "cluster-1"  # Prism Element cluster name
+NUTANIX_SUBNET_NAME: "default-network"  # Example: primary
+NUTANIX_STORAGE_CONTAINER_NAME: "default-container"  # Prism storage container 
+DOCKER_USERNAME: "your-docker-username" #Enter your docker username
+DOCKER_PASSWORD: "your-docker-password" #Enter your docker password
