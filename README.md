@@ -53,7 +53,7 @@ Since we are deploying in a Nutanix environment, install the `nutanix.ncp` ansib
 3. Below is a sample `playbook.yml` file utilising this role:
     ```yaml
     ---
-    - hosts: all
+    - hosts: localhost
       gather_facts: no
       roles:
         - nkp_ansible
