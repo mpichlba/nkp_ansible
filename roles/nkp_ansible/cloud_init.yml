@@ -1,0 +1,21 @@
+#cloud-config
+ssh_pwauth: false
+users:
+  - name: nutanix
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEAw2caEIHdaxX1Oqotm9Mm7LbJvJLa+HB1YircdErxa2f0RTPZwc7lKnPnzg1ihfw4ecF0Nx1CyqlNWZ8gAuTMdbSUH5jpCSu6fcmQKlFRrnwiWEUj4BEOQ3ZWWp1SVK8798DJdaLcWnlPa15MRlQ1XKiDkbQtpbFJx8DtkYMR5j+t6icfsQGoeKQwmMEW0LQJKNZ7OmB6qEjIg1J/fq2MsLoebx8yVKKPrHVg761p+KtmI6ICR/oHgxBsWR+ozJCx31VkBF3b+v4U29ExuNWOFq3avKnPWGTotASsxaC3duU9FhhxLkfo2dRWpuiAXVXpgC4iDQI/AlFQ9lKnl8JHYQ== imported-openssh-key"
+bootcmd:
+- mkdir -p /etc/docker
+runcmd:
+- '[ ! -f "/etc/yum.repos.d/nutanix_rocky9.repo" ] || mv -f /etc/yum.repos.d/nutanix_rocky9.repo /etc/yum.repos.d/nutanix_rocky9.repo.disabled'
+- dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+- dnf -y install docker-ce docker-ce-cli containerd.io
+- systemctl --now enable docker
+- usermod -aG docker nutanix
+- 'curl -Lo /usr/local/bin/kubectl https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl'
+- chmod +x /usr/local/bin/kubectl
+- 'curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash'
+- eject
+- 'wall "If you are seeing this message, please reconnect your SSH session. Otherwise, the NKP CLI installation process may fail."'
+final_message: "The machine is ready after $UPTIME seconds. Go ahead and install the NKP CLI using: $ curl -sL https://raw.githubusercontent.com/nutanixdev/nkp-quickstart/main/scripts/get-nkp-cli | bash"

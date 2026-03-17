@@ -23,7 +23,7 @@
     nutanix_username: "{{ NUTANIX_USER }}"
     nutanix_password: "{{ NUTANIX_PASSWORD }}"
     validate_certs: false
-    source_uri: "{{ image_url }}"
+    source_uri: "{{ NUTANIX_IMAGE_URL }}"
     clusters:
       - name: "{{ NUTANIX_PRISM_ELEMENT_CLUSTER_NAME }}"
     name: "{{ NUTANIX_MACHINE_TEMPLATE_IMAGE_NAME }}"
@@ -44,6 +44,14 @@
     kind: vm
   register: bootvm_present
 
+- name: Extract Bastion VM IP address
+  set_fact:
+    bootvm_ip: "{{ bootvm_present.response.entities[0].spec.resources.nic_list[0].ip_endpoint_list[0].ip }}"
+  when: bootvm_present.response.metadata.length > 0
+
+- name: Debug Bastion VM IP address
+  debug:
+    var: bootvm_ip 
 
 - name: Template te cloudinit file
   ansible.builtin.template:
@@ -100,7 +108,7 @@
     name: nkp_bastion
     groups: nkp_boot
     ansible_host: "{{ bootvm_ip }}"
-    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
     ansible_user: nutanix
 
 - name: Refresh inventory
@@ -114,7 +122,7 @@
   loop: "{{ groups['nkp_boot'] }}"
 
 - name: Download and extract NKP binary
-  ansible.builtin.shell: "curl -fsSL '{{ nkp_url }}' | tar xz -C /usr/local/bin -- nkp"
+  ansible.builtin.shell: "curl -fsSL '{{ NKP_LINUX_URL }}' | tar xz -C /usr/local/bin -- nkp"
   become: true
   delegate_to: "{{ item }}"
   loop: "{{ groups['nkp_boot'] }}"

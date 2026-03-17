@@ -1,0 +1,9 @@
+---
+- hosts: all
+  gather_facts: no
+  roles:
+    - nkp_ansible
+  environment:
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+  vars_files:
+    - vars.yml
