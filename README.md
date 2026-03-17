@@ -38,9 +38,10 @@ Since we are deploying in a Nutanix environment, install the `nutanix.ncp` ansib
     ansible-galaxy collection install nutanix.ncp
 
 ### Steps:
-1. Download this role to the Ansible control plane from Ansible Galaxy by running the following command:
+1. Clone this repository to your Ansible control plane:
     ```sh
-    ansible-galaxy role install rathnaarun77.nkp_ansible
+    git clone <repo-url>
+    cd nkp_ansible
     ```
 
 2. Create or download the `inventory.ini` file from this repo and pass it while you run the Ansible playbook, it just contains the localhost so no modifications required.
@@ -55,12 +56,12 @@ Since we are deploying in a Nutanix environment, install the `nutanix.ncp` ansib
     - hosts: all
       gather_facts: no
       roles:
-        - rathnaarun77.nkp_ansible
+        - nkp_ansible
       environment:
         ANSIBLE_HOST_KEY_CHECKING: "False"
       vars_files:
         - vars.yml  # Load variables from separate file
-      
+    ```
 
     > ⚠️ **Note:** All the variables are mandatory. Variables can be stored in a `vars.yml` file and referenced using `vars_files` (recommended) or defined inline in the playbook.
 

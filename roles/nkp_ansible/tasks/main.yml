@@ -23,7 +23,7 @@
     nutanix_username: "{{ NUTANIX_USER }}"
     nutanix_password: "{{ NUTANIX_PASSWORD }}"
     validate_certs: false
-    source_uri: "{{ NUTANIX_IMAGE_URL }}"
+    source_uri: "{{ NODE_IMAGE_URL }}"
     clusters:
       - name: "{{ NUTANIX_PRISM_ELEMENT_CLUSTER_NAME }}"
     name: "{{ NUTANIX_MACHINE_TEMPLATE_IMAGE_NAME }}"
@@ -44,16 +44,18 @@
     kind: vm
   register: bootvm_present
 
-- name: Extract Bastion VM IP address
+- name: Extract Bastion VM IP address from existing VM
   set_fact:
     bootvm_ip: "{{ bootvm_present.response.entities[0].spec.resources.nic_list[0].ip_endpoint_list[0].ip }}"
+    bootvm_created: false
   when: bootvm_present.response.metadata.length > 0
 
-- name: Debug Bastion VM IP address
+- name: Debug existing Bastion VM IP address
   debug:
-    var: bootvm_ip 
+    var: bootvm_ip
+  when: bootvm_present.response.metadata.length > 0 
 
-- name: Template te cloudinit file
+- name: Template the cloud-init configuration file
   ansible.builtin.template:
     src: templates/cloud_init.yml.j2
     dest: ./cloud_init.yml
@@ -90,20 +92,13 @@
   register: bootvm_out
   when: bootvm_present.response.metadata.length == 0
 
-
-- name: Extract Bastion VM IP address
+- name: Extract Bastion VM IP address from newly created VM
   set_fact:
     bootvm_ip: "{{ bootvm_out.response.spec.resources.nic_list[0].ip_endpoint_list[0].ip }}"
+    bootvm_created: true
   when: bootvm_out.changed
 
-#- name: Add new Bastion VM to inventory.ini
-#  ansible.builtin.lineinfile:
-#    path: "inventory.ini"
-#    line: "nkp_bastion ansible_host={{ bootvm_ip }} ansible_ssh_common_args='-o StrictHostKeyChecking=no' ansible_user=nutanix"
-#    insertafter: "[nkp_boot]"
-#    create: yes
-
-- name: Add new Bastion VM to in-memory inventory
+- name: Add Bastion VM to in-memory inventory
   ansible.builtin.add_host:
     name: nkp_bastion
     groups: nkp_boot
@@ -115,26 +110,42 @@
   ansible.builtin.meta: refresh_inventory
 
 # NKP Deploy - Second Module
-- name: Wait for Bastion VM to be ready
+- name: Wait for newly created Bastion VM to be ready
   ansible.builtin.pause:
     seconds: 30
-  delegate_to: "{{ item }}"
-  loop: "{{ groups['nkp_boot'] }}"
+  when: bootvm_created | default(false)
 
 - name: Download and extract NKP binary
   ansible.builtin.shell: "curl -fsSL '{{ NKP_LINUX_URL }}' | tar xz -C /usr/local/bin -- nkp"
   become: true
   delegate_to: "{{ item }}"
   loop: "{{ groups['nkp_boot'] }}"
+  register: nkp_download_result
+  changed_when: "'nkp' in nkp_download_result.stdout or nkp_download_result.rc == 0"
 
-- name: Check if NKP is installed
+- name: Verify NKP binary installation
   ansible.builtin.command: nkp version
   register: nkp_version_output
   ignore_errors: true
   changed_when: false
   delegate_to: "{{ item }}"
   loop: "{{ groups['nkp_boot'] }}"
+  failed_when: nkp_version_output.rc != 0
 
+- name: Debug NKP version
+  debug:
+    msg: "NKP version: {{ nkp_version_output.results[0].stdout }}"
+  when: nkp_version_output.results[0].rc == 0
+
+
+- name: Check if NKP cluster already exists
+  ansible.builtin.shell: |
+    nkp get clusters | grep -q "{{ CLUSTER_NAME }}"
+  delegate_to: "{{ groups['nkp_boot'][0] }}"
+  register: cluster_exists
+  changed_when: false
+  ignore_errors: true
+  failed_when: false
 
 - name: Create NKP cluster
   ansible.builtin.shell: |
@@ -154,27 +165,29 @@
       --worker-subnets {{ NUTANIX_SUBNET_NAME }} \
       --worker-replicas 3 \
       --csi-storage-container {{ NUTANIX_STORAGE_CONTAINER_NAME }} \
-      --registry-url "https://registry-1.docker.io" \ 
-      --registry-username {{ DOCKER_USERNAME }} \ 
+      --registry-url "https://registry-1.docker.io" \
+      --registry-username {{ DOCKER_USERNAME }} \
       --registry-password {{ DOCKER_PASSWORD }} \
       --self-managed
   register: nkp_output
-  delegate_to: "{{ item }}"
-  loop: "{{ groups['nkp_boot'] }}"
+  delegate_to: "{{ groups['nkp_boot'][0] }}"
+  when: cluster_exists.rc != 0
 
 - name: Display NKP cluster creation output
   debug:
     var: nkp_output
-  delegate_to: "{{ item }}"
-  loop: "{{ groups['nkp_boot'] }}"
+  delegate_to: "{{ groups['nkp_boot'][0] }}"
+  when: nkp_output is defined
 
 - name: Retrieve NKP dashboard information
   ansible.builtin.command: "nkp get dashboard --kubeconfig=./{{ CLUSTER_NAME }}.conf"
   register: dashboard_output
   changed_when: false
-  delegate_to: "{{ item }}"
-  loop: "{{ groups['nkp_boot'] }}"
+  delegate_to: "{{ groups['nkp_boot'][0] }}"
 
-- name: Display NKP dashboard output
+- name: Display NKP dashboard access information
   ansible.builtin.debug:
-    var: dashboard_output.results[0].stdout_lines
+    msg: |
+      NKP Cluster Dashboard Access Information:
+      {{ dashboard_output.stdout_lines | join('\n') }}
+  when: dashboard_output.rc == 0

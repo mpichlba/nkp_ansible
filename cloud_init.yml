@@ -4,7 +4,7 @@ users:
   - name: nutanix
     sudo: ALL=(ALL) NOPASSWD:ALL
     ssh_authorized_keys:
-      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDDY8vdsR/sS3dOf2ucfLmA7S1eV0yqZHBY5mC+tfRSQ root@14b111c5fd9c"
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICIrCJ24kepwntvgZ/P5SOm+Ln33H50UcoeKwzbftBfb root@2420a72b270f"
 bootcmd:
 - mkdir -p /etc/docker
 runcmd:
