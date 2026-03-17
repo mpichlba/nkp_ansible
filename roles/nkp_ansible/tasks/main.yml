@@ -40,7 +40,6 @@
     nutanix_password: "{{ NUTANIX_PASSWORD }}"
     validate_certs: false
     source_uri: "{{ NODE_IMAGE_URL }}"
-    source_uri: "{{ NODE_IMAGE_URL }}"
     clusters:
       - name: "{{ NUTANIX_PRISM_ELEMENT_CLUSTER_NAME }}"
     name: "{{ MACHINE_TEMPLATE_IMAGE }}"
@@ -113,7 +112,7 @@
   set_fact:
     bootvm_ip: "{{ bootvm_out.response.spec.resources.nic_list[0].ip_endpoint_list[0].ip }}"
     bootvm_created: true
-  when: bootvm_out.changed
+  when: bootvm_present.response.metadata.length == 0
 
 - name: Add Bastion VM to in-memory inventory
   ansible.builtin.add_host:
@@ -132,27 +131,31 @@
     seconds: 30
   when: bootvm_created | default(false)
 
+- name: Check if NKP binary already exists
+  ansible.builtin.command: command -v nkp
+  register: nkp_binary_check
+  ignore_errors: true
+  changed_when: false
+  delegate_to: "{{ groups['nkp_boot'][0] }}"
+
 - name: Download and extract NKP binary
   ansible.builtin.shell: "curl -fsSL '{{ NKP_LINUX_URL }}' | tar xz -C /usr/local/bin -- nkp"
   become: true
-  delegate_to: "{{ item }}"
-  loop: "{{ groups['nkp_boot'] }}"
+  delegate_to: "{{ groups['nkp_boot'][0] }}"
   register: nkp_download_result
-  changed_when: "'nkp' in nkp_download_result.stdout or nkp_download_result.rc == 0"
+  when: nkp_binary_check.rc != 0
+  changed_when: nkp_download_result.rc == 0
 
 - name: Verify NKP binary installation
   ansible.builtin.command: nkp version
   register: nkp_version_output
-  ignore_errors: true
   changed_when: false
-  delegate_to: "{{ item }}"
-  loop: "{{ groups['nkp_boot'] }}"
-  failed_when: nkp_version_output.rc != 0
+  delegate_to: "{{ groups['nkp_boot'][0] }}"
 
 - name: Debug NKP version
   debug:
-    msg: "NKP version: {{ nkp_version_output.results[0].stdout }}"
-  when: nkp_version_output.results[0].rc == 0
+    msg: "NKP version: {{ nkp_version_output.stdout }}"
+  when: nkp_version_output.rc == 0
 
 
 - name: Check if NKP cluster already exists
@@ -162,15 +165,12 @@
   register: cluster_exists
   changed_when: false
   ignore_errors: true
-  failed_when: false
 - name: Extract URL without http or https
   set_fact:
     clean_mirror_registry_url: "{{ MIRROR_REGISTRY_URL | regex_replace('^https?://', '') }}"
 
 - name: Launch NKP cluster create (for unauthenticated registries)
   ansible.builtin.shell: |
-    export NUTANIX_USER={{ NUTANIX_USER }}
-    export NUTANIX_PASSWORD={{ NUTANIX_PASSWORD }}
     nkp create cluster nutanix -c {{ CLUSTER_NAME }} \
       --kind-cluster-image {{ clean_mirror_registry_url }}/mesosphere/konvoy-bootstrap:v{{ NKP_VERSION }}\
       --endpoint https://{{ NUTANIX_ENDPOINT }}:{{ NUTANIX_PORT }} \
@@ -192,18 +192,18 @@
       --worker-memory {{ WORKER_MEMORY }} \
       --worker-vcpus {{ WORKER_VCPU }} \
       --self-managed
+  environment:
+    NUTANIX_USER: "{{ NUTANIX_USER }}"
+    NUTANIX_PASSWORD: "{{ NUTANIX_PASSWORD }}"
   async: 3600
   poll: 10
   register: nkp_output
-  delegate_to: "{{ item }}"
-  loop: "{{ groups['nkp_boot'] }}"
-  when: (DOCKER_USERNAME | default('') == '') and (DOCKER_PASSWORD | default('') == '')
+  delegate_to: "{{ groups['nkp_boot'][0] }}"
+  when: (cluster_exists.rc != 0) and (DOCKER_USERNAME | default('') == '') and (DOCKER_PASSWORD | default('') == '')
 
 
 - name: Launch NKP cluster create (for authenticated registries)
   ansible.builtin.shell: |
-    export NUTANIX_USER={{ NUTANIX_USER }}
-    export NUTANIX_PASSWORD={{ NUTANIX_PASSWORD }}
     nkp create cluster nutanix -c {{ CLUSTER_NAME }} \
       --kind-cluster-image {{ clean_mirror_registry_url }}/mesosphere/konvoy-bootstrap:v{{ NKP_VERSION }}\
       --endpoint https://{{ NUTANIX_ENDPOINT }}:{{ NUTANIX_PORT }} \
@@ -217,7 +217,7 @@
       --worker-vm-image {{ MACHINE_TEMPLATE_IMAGE }} \
       --worker-prism-element-cluster {{ NUTANIX_PRISM_ELEMENT_CLUSTER_NAME }} \
       --worker-subnets {{ NUTANIX_SUBNET_NAME }} \
-      --worker-replicas 2 \
+      --worker-replicas {{ WORKER_REPLICAS }} \
       --csi-storage-container {{ NUTANIX_STORAGE_CONTAINER_NAME }} \
       --registry-mirror-url {{ MIRROR_REGISTRY_URL }} \
       --registry-mirror-username {{ DOCKER_USERNAME }} \
@@ -227,18 +227,19 @@
       --worker-memory {{ WORKER_MEMORY }} \
       --worker-vcpus {{ WORKER_VCPU }} \
       --self-managed
+  environment:
+    NUTANIX_USER: "{{ NUTANIX_USER }}"
+    NUTANIX_PASSWORD: "{{ NUTANIX_PASSWORD }}"
   async: 3600
   poll: 10
   register: nkp_output
-  delegate_to: "{{ item }}"
-  loop: "{{ groups['nkp_boot'] }}"
-  when: (DOCKER_USERNAME | default('') != '') and (DOCKER_PASSWORD | default('') != '')
+  delegate_to: "{{ groups['nkp_boot'][0] }}"
+  when: (cluster_exists.rc != 0) and (DOCKER_USERNAME | default('') != '') and (DOCKER_PASSWORD | default('') != '')
 
 
 - name: Display NKP cluster creation output
   debug:
     var: nkp_output
-  delegate_to: "{{ groups['nkp_boot'][0] }}"
   when: nkp_output is defined
 
 - name: Retrieve NKP dashboard information
