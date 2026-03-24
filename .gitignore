@@ -2,6 +2,6 @@
 *.log
 vars.yml
 cloud_init.yml
-cloud_init.yml
 .gitignore
-.gitignore
+id_ed25519
+id_ed25519.pub
