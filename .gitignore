@@ -2,3 +2,6 @@
 *.log
 vars.yml
 cloud_init.yml
+cloud_init.yml
+.gitignore
+.gitignore
