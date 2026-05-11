@@ -172,7 +172,7 @@
 - name: Launch NKP cluster create (for unauthenticated registries)
   ansible.builtin.shell: |
     nkp create cluster nutanix -c {{ CLUSTER_NAME }} \
-      --kind-cluster-image {{ clean_mirror_registry_url }}/mesosphere/konvoy-bootstrap:v{{ NKP_VERSION }}\
+       --bootstrap-cluster-image {{ clean_mirror_registry_url }}/mesosphere/konvoy-bootstrap:v{{ NKP_VERSION }}\
       --endpoint https://{{ NUTANIX_ENDPOINT }}:{{ NUTANIX_PORT }} \
       --insecure \
       --kubernetes-service-load-balancer-ip-range {{ LB_IP_RANGE }} \
@@ -205,7 +205,7 @@
 - name: Launch NKP cluster create (for authenticated registries)
   ansible.builtin.shell: |
     nkp create cluster nutanix -c {{ CLUSTER_NAME }} \
-      --kind-cluster-image {{ clean_mirror_registry_url }}/mesosphere/konvoy-bootstrap:v{{ NKP_VERSION }}\
+       --bootstrap-cluster-image {{ clean_mirror_registry_url }}/mesosphere/konvoy-bootstrap:v{{ NKP_VERSION }}\
       --endpoint https://{{ NUTANIX_ENDPOINT }}:{{ NUTANIX_PORT }} \
       --insecure \
       --kubernetes-service-load-balancer-ip-range {{ LB_IP_RANGE }} \
